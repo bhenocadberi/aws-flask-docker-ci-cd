@@ -27,7 +27,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           # Option 1: Use OpenID Connect (OIDC) - Most Secure & Recommended
-          role-to-assume: arn:aws:iam::452271769232:role/GitHubActionsRole # Replace with your AWS account ID and IAM Role Name
+          role-to-assume: arn:aws:iam::452271769232:role/GitHubActionsECSRole # Replace with your AWS account ID and IAM Role Name
           aws-region: ${{ env.AWS_REGION }}
           # Option 2: If OIDC is too complex for now, use Access Keys (less secure for production!)
           # aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
