@@ -86,3 +86,40 @@ data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
 }
+
+variable "image_tag" {
+  description = "Docker image tag to deploy"
+  type        = string
+}
+
+# EC2 Instance
+resource "aws_instance" "flask_app" {
+  ami           = data.aws_ami.amazon_linux.id # This uses the AMI data source you defined
+  instance_type = "t2.micro" # Choose an appropriate instance type (e.g., t2.micro, t3.micro)
+
+  # Attach to your created VPC subnet
+  # Replace 'aws_subnet.your_subnet_name.id' with the actual ID of your public subnet
+  subnet_id = aws_subnet.public_subnet.id # Assuming you have a resource named 'public_subnet'
+
+  # Attach your application security group
+  # Replace 'aws_security_group.app_sg.id' with the actual ID of your application security group
+  vpc_security_group_ids = [aws_security_group.app_sg.id] # Assuming you have a resource named 'app_sg'
+
+  # User data to install Docker and run your Flask app from Docker Hub
+  user_data = <<-EOF
+              #!/bin/bash
+              sudo yum update -y
+              sudo amazon-linux-extras install docker -y
+              sudo service docker start
+              sudo usermod -a -G docker ec2-user
+              sudo chkconfig docker on
+              # Pull and run your Docker image. Replace 'your_docker_hub_username' with your actual lowercase username
+              # And 'flask-app-example' with your actual repository name.
+              sudo docker run -d -p 5000:5000 ${var.image_tag}
+              EOF
+
+  tags = {
+    Name = "flask-app-instance"
+    Environment = "production"
+  }
+}
