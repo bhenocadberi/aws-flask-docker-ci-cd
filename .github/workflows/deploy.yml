@@ -5,8 +5,8 @@ name: Deploy Flask App to AWS
 on:
   push:
     branches:
-      - main # Trigger on pushes to the main branch
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+      - main       # Trigger on pushes to the main branch
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 env:
   AWS_REGION: ap-southeast-2 # Your AWS region
@@ -15,7 +15,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: production # Or 'development' - helps with secrets management
-
     # Permissions needed for GitHub Actions to interact with AWS and id_token
     permissions:
       id-token: write # Required for OIDC
