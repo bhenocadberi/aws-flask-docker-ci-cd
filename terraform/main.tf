@@ -120,10 +120,10 @@ resource "aws_instance" "flask_app" {
   vpc_security_group_ids = [aws_security_group.app_sg.id] # Assuming you have a resource named 'app_sg'
 
 # In your main.tf or variables.tf
-variable "docker_image_prefix" {
-  description = "The Docker image repository prefix (usually your Docker Hub username in lowercase)."
-  type        = string
-}
+#variable "docker_image_prefix" {
+#  description = "The Docker image repository prefix (usually your Docker Hub username in lowercase)."
+#  type = string
+#}
 
   # User data to install Docker and run your Flask app from Docker Hub
   user_data = <<-EOF
