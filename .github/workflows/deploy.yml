@@ -8,7 +8,7 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2 # Your AWS region. Keep this at the top level for general use.
-  IMAGE_TAG: ${{ secrets.DOCKER_USERNAME_LOWERCASE }}/flask-app-example:v1.0.${{ github.run_number }} # Define IMAGE_TAG globally for consistent use
+  IMAGE_TAG: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:v1.0.${{ github.run_number }} # Define IMAGE_TAG globally for consistent use
 
 jobs:
   build-and-deploy:
