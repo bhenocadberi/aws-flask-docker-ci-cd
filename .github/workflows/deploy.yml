@@ -1,3 +1,4 @@
+
 # This is a test comment to trigger re-indexing
 name: Deploy Flask App to AWS
 
@@ -76,19 +77,19 @@ jobs:
           TF_VAR_image_tag: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:latest # Pass image tag as a Terraform variable if needed (optional for this simple case)
 
       # Apply only on main branch pushes OR manual workflow_dispatch
-#      - name: Terraform Apply
-#        id: apply
-#        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-#        run: terraform apply -auto-approve -input=false
-#        working-directory: ./terraform
-#        env:
-#          TF_VAR_image_tag: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:latest # Optional: pass image tag
+      - name: Terraform Apply
+        id: apply
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve -input=false
+        working-directory: ./terraform
+        env:
+          TF_VAR_image_tag: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:latest # Optional: pass image tag
 
  # ADD THIS NEW DESTROY STEP
-      - name: Terraform Destroy
-        id: destroy
-        run: terraform destroy -auto-approve -input=false -var "image_tag=${{ env.IMAGE_TAG }}" # Use -auto-approve for automation
-        working-directory: ./terraform
+#      - name: Terraform Destroy
+#        id: destroy
+#        run: terraform destroy -auto-approve -input=false -var "image_tag=${{ env.IMAGE_TAG }}" # Use -auto-approve for automation
+#        working-directory: ./terraform
 
 
 #      - name: Get EC2 Instance Public IP

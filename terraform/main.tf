@@ -1,3 +1,16 @@
+#state file
+terraform {
+  required_version = ">= 1.0.0" # Specify your minimum Terraform version
+
+  backend "s3" {
+    bucket         = "your-github-actions-flask-app-tfstate" # REPLACE WITH YOUR S3 BUCKET NAME
+    key            = "flask-app/terraform.tfstate"           # Path within the S3 bucket
+    region         = "ap-southeast-2"                        # REPLACE WITH YOUR AWS REGION
+    encrypt        = true                                    # Encrypt the state file at rest
+    dynamodb_table = "your-github-actions-flask-app-tf-lock" # REPLACE WITH YOUR DYNAMODB TABLE NAME
+  }
+}
+
 # Specify the AWS provider and region
 provider "aws" {
   region = "ap-southeast-2" # Or your preferred AWS region (e.g., "ap-southeast-1" for Singapore, common in Asia)
