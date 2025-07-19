@@ -1,5 +1,3 @@
-
-# This is a test comment to trigger re-indexing
 name: Deploy Flask App to AWS
 
 on:
@@ -9,16 +7,16 @@ on:
   workflow_dispatch:  # Allows manual trigger from GitHub UI
 
 env:
-  AWS_REGION: ap-southeast-2 # Your AWS region
+  AWS_REGION: ap-southeast-2 # Your AWS region. Keep this at the top level for general use.
+  IMAGE_TAG: ${{ secrets.DOCKER_USERNAME_LOWERCASE }}/flask-app-example:v1.0.${{ github.run_number }} # Define IMAGE_TAG globally for consistent use
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: production # Or 'development' - helps with secrets management
-    # Permissions needed for GitHub Actions to interact with AWS and id_token
+    environment: production # Use an environment for better secrets management and controls
     permissions:
       id-token: write # Required for OIDC
-      contents: read # Required to checkout code
+      contents: read  # Required to checkout code
 
     steps:
       - name: Checkout code
@@ -27,12 +25,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Option 1: Use OpenID Connect (OIDC) - Most Secure & Recommended
-          role-to-assume: arn:aws:iam::452271769232:role/GitHubActionsECSRole # Replace with your AWS account ID and IAM Role Name
+          role-to-assume: arn:aws:iam::452271769232:role/GitHubActionsECSRole # REPLACE WITH YOUR AWS ACCOUNT ID AND IAM Role Name
           aws-region: ${{ env.AWS_REGION }}
-          # Option 2: If OIDC is too complex for now, use Access Keys (less secure for production!)
-          # aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Set up Docker BuildX
         uses: docker/setup-buildx-action@v3
@@ -40,28 +34,25 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME  }} # Your Docker Hub username
-          password: ${{ secrets.DOCKER_PASSWORD  }} # Your Docker Hub Personal Access Token (PAT)
+          username: ${{ secrets.DOCKER_USERNAME }} # Your Docker Hub username
+          password: ${{ secrets.DOCKER_PASSWORD }} # Your Docker Hub PAT
 
-      - name: Build and push Docker image
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./app # Path to your Dockerfile context
+          context: ./app # Path to your Dockerfile
           push: true
-          tags: |
-            ${{ secrets.benski186 }}/flask-app-example:latest
-            ${{ secrets.benski186 }}/flask-app-example:${{ github.sha }}
-          file: ./app/Dockerfile # Path to your Dockerfile
+          tags: ${{ env.IMAGE_TAG }} # Use the global IMAGE_TAG defined in env section
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.x.x # Use your installed Terraform version, e.g., 1.7.0
+          terraform_version: 1.x.x # Use your specific Terraform version (e.g., 1.5.7)
 
       - name: Terraform Init
         id: init
         run: terraform init
-        working-directory: ./terraform # Run terraform commands in the terraform directory
+        working-directory: ./terraform
 
       - name: Terraform Validate
         id: validate
@@ -70,38 +61,55 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -input=false
+        # Pass variables to Terraform plan
+        run: terraform plan -input=false -var "image_tag=${{ env.IMAGE_TAG }}" -var "docker_image_prefix=${{ secrets.DOCKER_USERNAME_LOWERCASE }}"
         working-directory: ./terraform
-        env:
-          TF_VAR_image_tag: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:latest 
-          #Pass image tag as a Terraform variable if needed (optional for this simplecase)
 
-#     # Apply only on main branch pushes OR manual workflow_dispatch
-     - name: Terraform Apply
-       id: apply
-       if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-       run: terraform apply -auto-approve -input=false
-       working-directory: ./terraform
-       env:
-         TF_VAR_image_tag: ${{ secrets.DOCKER_USERNAME }}/flask-app-example:latest 
-          #Optional: pass image tag
+      - name: Terraform Apply
+        id: apply
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        # Pass variables to Terraform apply
+        run: terraform apply -auto-approve -input=false -var "image_tag=${{ env.IMAGE_TAG }}" -var "docker_image_prefix=${{ secrets.DOCKER_USERNAME_LOWERCASE }}"
+        working-directory: ./terraform
 
- # ADD THIS NEW DESTROY STEP
-#      - name: Terraform Destroy
-#        id: destroy
-#        run: terraform destroy -auto-approve -input=false -var "image_tag=${{ env.IMAGE_TAG }}" 
-#      # Use -auto-approve for automation
-#        working-directory: ./terraform
+      # --------------------------------------------------------------------------
+      # IMPORTANT: If you want to DESTROY, uncomment the destroy step below
+      #            AND comment out the "Terraform Apply" step above.
+      # --------------------------------------------------------------------------
+      # - name: Terraform Destroy
+      #   id: destroy
+      #   run: terraform destroy -auto-approve -input=false -var "image_tag=${{ env.IMAGE_TAG }}" -var "docker_image_prefix=${{ secrets.DOCKER_USERNAME_LOWERCASE }}"
+      #   working-directory: ./terraform
 
       - name: Get EC2 Instance Public IP
         id: get_ip
+        # No 'env:' block needed here.
         run: |
           EC2_IP=$(terraform output -raw flask_app_public_ip)
-          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+          echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV # This makes EC2_IP available to subsequent steps via ${{ env.EC2_IP }}
         working-directory: ./terraform
 
       - name: Check Deployed Application
         run: |
           echo "Application should be live at: http://${{ env.EC2_IP }}:5000"
-          # You can add a curl command here to verify the app is running
-            curl -f "http://${{ env.EC2_IP }}:5000"
+          # Curl command to verify the app is running
+          # This will ensure the app is truly accessible before the workflow finishes successfully.
+          # The -f flag makes curl fail silently on HTTP errors (e.g., 4xx, 5xx) so the step fails if the app isn't healthy.
+          curl -f "http://${{ env.EC2_IP }}:5000"
+        # Optional: Add a timeout if the app takes a bit to start
+        # timeout-minutes: 2 # Adjust as needed
+
+      # Post-build/deploy cleanup steps (optional)
+      - name: Post Login to Docker Hub
+        uses: docker/login-action@v3
+        if: always() # Runs even if previous steps fail
+        with:
+          logout: true
+
+      - name: Post Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        if: always() # Runs even if previous steps fail
+        with:
+          role-to-assume: arn:aws:iam::452271769232:role/GitHubActionsECSRole
+          aws-region: ${{ env.AWS_REGION }}
+          # This action doesn't have a direct 'logout' but configuring again might clear tokens

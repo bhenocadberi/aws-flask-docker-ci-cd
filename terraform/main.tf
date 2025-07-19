@@ -105,6 +105,7 @@ variable "image_tag" {
   type        = string
 }
 
+
 # EC2 Instance
 resource "aws_instance" "flask_app" {
   ami           = data.aws_ami.amazon_linux.id # This uses the AMI data source you defined
@@ -117,6 +118,12 @@ resource "aws_instance" "flask_app" {
   # Attach your application security group
   # Replace 'aws_security_group.app_sg.id' with the actual ID of your application security group
   vpc_security_group_ids = [aws_security_group.app_sg.id] # Assuming you have a resource named 'app_sg'
+
+# In your main.tf or variables.tf
+variable "docker_image_prefix" {
+  description = "The Docker image repository prefix (usually your Docker Hub username in lowercase)."
+  type        = string
+}
 
   # User data to install Docker and run your Flask app from Docker Hub
   user_data = <<-EOF
